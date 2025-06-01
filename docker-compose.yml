@@ -14,7 +14,7 @@ services:
       SERVER_BASE_URL: http://localhost:8080
     depends_on:
       - postgres
-    image: dhis2/core:2.42
+    image: dhis2/core:2.40
     networks:
       - dhis2
     platform: linux/amd64
