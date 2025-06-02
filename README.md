@@ -50,6 +50,75 @@ The DHIS2 instance will be accessible at `http://localhost:8080`.
 - Username: `admin`
 - Password: `district`
 
+## Custom Domain/URL Configuration
+
+To access DHIS2 on a custom domain or specific URL instead of localhost:
+
+### Method 1: Using a Custom Domain
+
+1. **Update docker-compose.yml environment variables:**
+   ```yaml
+   environment:
+     SERVER_BASE_URL: http://your-domain.com:8080
+     # or for HTTPS:
+     # SERVER_BASE_URL: https://your-domain.com
+     # SERVER_HTTPS: "on"
+   ```
+
+2. **Configure your domain to point to your server:**
+   - Update DNS records to point to your server's IP address
+   - Or add entry to `/etc/hosts` file for local testing:
+     ```bash
+     echo "127.0.0.1 your-domain.com" | sudo tee -a /etc/hosts
+     ```
+
+3. **Restart the containers:**
+   ```bash
+   docker-compose down
+   docker-compose up -d
+   ```
+
+### Method 2: Using Different Port
+
+1. **Change the port mapping in docker-compose.yml:**
+   ```yaml
+   ports:
+     - 80:8080  # Access on port 80
+     # or
+     - 443:8080  # For HTTPS setup
+   ```
+
+2. **Update the base URL:**
+   ```yaml
+   environment:
+     SERVER_BASE_URL: http://your-domain.com
+     # No port needed if using standard ports (80/443)
+   ```
+
+### Method 3: Behind a Reverse Proxy (Nginx/Apache)
+
+1. **Keep internal port mapping:**
+   ```yaml
+   ports:
+     - 127.0.0.1:8080:8080  # Only accessible locally
+   ```
+
+2. **Configure your reverse proxy to forward requests to localhost:8080**
+
+3. **Update DHIS2 base URL to match your proxy:**
+   ```yaml
+   environment:
+     SERVER_BASE_URL: https://dhis2.your-domain.com
+     SERVER_HTTPS: "on"
+   ```
+
+### Important Notes
+
+- Always restart containers after changing environment variables
+- For production deployments, use HTTPS with proper SSL certificates
+- The `SERVER_BASE_URL` must match exactly how users will access DHIS2
+- DHIS2 uses this URL for generating links and redirects
+
 ### 3. Stop DHIS2
 
 ```bash
