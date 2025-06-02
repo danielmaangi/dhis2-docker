@@ -50,6 +50,21 @@ The DHIS2 instance will be accessible at `http://localhost:8080`.
 - Username: `admin`
 - Password: `district`
 
+### 3. Verify Installation
+
+```bash
+# Check if containers are running
+docker ps
+
+# Check DHIS2 logs for successful startup
+docker logs dhis2 --tail 20
+
+# Test web interface accessibility
+curl -I http://localhost:8080
+```
+
+If you see a `HTTP/1.1 302` response with a redirect to `/dhis-web-login/`, the installation is successful.
+
 ## Custom Domain/URL Configuration
 
 To access DHIS2 on a custom domain or specific URL instead of localhost:
@@ -182,6 +197,157 @@ docker-compose up -d
   tar -czf dhis_backup_$(date +%Y%m%d).tar.gz data/dhis/
   ```
 
+## Troubleshooting
+
+### Common Issues and Solutions
+
+#### 1. DHIS2 Container Fails to Start - Configuration File Not Found
+
+**Symptoms:**
+- Container keeps restarting
+- Logs show: `File /opt/dhis2/dhis.conf cannot be read`
+- Error: `LocationManagerException: File /opt/dhis2/dhis.conf cannot be read`
+
+**Solution:**
+```bash
+# Create symbolic link inside the container
+docker exec dhis2 bash -c "mkdir -p /opt/dhis2 && ln -sf /DHIS2_home/dhis.conf /opt/dhis2/dhis.conf"
+
+# Restart the container
+docker restart dhis2
+
+# Verify the fix
+docker logs dhis2 --tail 20
+```
+
+**Permanent Fix:** Update your docker-compose.yml to include the `DHIS2_CONF_DIR` environment variable:
+```yaml
+environment:
+  DHIS2_HOME: /DHIS2_home
+  DHIS2_CONF_DIR: /DHIS2_home  # Add this line
+  # ... other environment variables
+```
+
+#### 2. Database Connection Issues
+
+**Symptoms:**
+- DHIS2 fails to connect to PostgreSQL
+- Logs show database connection errors
+
+**Solution:**
+```bash
+# Check if PostgreSQL is running
+docker ps | grep postgres
+
+# Check PostgreSQL logs
+docker logs postgres
+
+# Verify database credentials in docker-compose.yml match
+# Restart both containers in correct order
+docker-compose down
+docker-compose up -d postgres
+sleep 10
+docker-compose up -d dhis2
+```
+
+#### 3. Port Already in Use
+
+**Symptoms:**
+- Error: `port is already allocated`
+- Cannot start containers
+
+**Solution:**
+```bash
+# Check what's using port 8080
+sudo netstat -tulpn | grep :8080
+# or
+sudo lsof -i :8080
+
+# Stop the conflicting service or change port in docker-compose.yml
+# Example: Change to port 8081
+ports:
+  - 8081:8080
+```
+
+#### 4. Slow Startup or Performance Issues
+
+**Symptoms:**
+- DHIS2 takes very long to start
+- Web interface is slow
+
+**Solution:**
+```bash
+# Increase memory allocation in docker-compose.yml
+JAVA_OPTS: -Xms4096m -Xmx8192m  # Increase from default 2GB/4GB
+
+# Check system resources
+docker stats
+
+# Ensure sufficient disk space
+df -h
+```
+
+#### 5. Web Interface Not Accessible
+
+**Symptoms:**
+- Cannot access http://localhost:8080
+- Connection refused or timeout
+
+**Solution:**
+```bash
+# Check if DHIS2 container is running
+docker ps | grep dhis2
+
+# Check DHIS2 logs for startup completion
+docker logs dhis2 | grep "Server startup"
+
+# Test connectivity
+curl -I http://localhost:8080
+
+# If using custom domain, check SERVER_BASE_URL in docker-compose.yml
+```
+
+#### 6. Data Loss After Container Restart
+
+**Symptoms:**
+- All data disappears after restarting containers
+- Fresh DHIS2 installation every time
+
+**Solution:**
+```bash
+# Ensure data directories exist and have correct permissions
+mkdir -p data/dhis data/postgres
+sudo chown -R $USER:$USER data/
+
+# Check volume mounts in docker-compose.yml
+# Verify data persistence
+ls -la data/postgres/  # Should contain PostgreSQL data files
+ls -la data/dhis/      # Should contain dhis.conf
+```
+
+### Diagnostic Commands
+
+```bash
+# Complete system check
+echo "=== Container Status ==="
+docker ps
+
+echo "\n=== DHIS2 Logs (last 20 lines) ==="
+docker logs dhis2 --tail 20
+
+echo "\n=== PostgreSQL Logs (last 10 lines) ==="
+docker logs postgres --tail 10
+
+echo "\n=== Network Connectivity ==="
+curl -I http://localhost:8080
+
+echo "\n=== Disk Usage ==="
+df -h data/
+
+echo "\n=== Memory Usage ==="
+docker stats --no-stream
+```
+
 ## Monitoring and Logs
 
 ```bash
@@ -269,6 +435,7 @@ services:
     container_name: dhis2
     environment:
       DHIS2_HOME: /DHIS2_home
+      DHIS2_CONF_DIR: /DHIS2_home
       JAVA_OPTS: -Xms2048m -Xmx4096m
       TZ: Africa/Nairobi
       POSTGRES_HOST: postgres

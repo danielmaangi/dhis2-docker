@@ -3,6 +3,7 @@ services:
     container_name: dhis2
     environment:
       DHIS2_HOME: /DHIS2_home
+      DHIS2_CONF_DIR: /DHIS2_home
       JAVA_OPTS: -Xms2048m -Xmx4096m
       TZ: Africa/Nairobi
       POSTGRES_HOST: postgres
