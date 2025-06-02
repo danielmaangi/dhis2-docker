@@ -24,6 +24,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./data/dhis:/DHIS2_home
+      - ./data/dhis/dhis.conf:/opt/dhis2/dhis.conf
 
   postgres:
     container_name: postgres
