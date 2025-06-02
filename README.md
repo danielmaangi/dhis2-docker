@@ -130,6 +130,66 @@ docker-compose exec dhis2 bash
 docker-compose exec postgres psql -U dhis -d dhis2
 ```
 
+## Complete Removal
+
+To permanently delete everything (containers, images, volumes, and the project):
+
+### Option 1: Quick Removal (Recommended)
+
+```bash
+# Stop and remove containers, networks, and volumes
+docker-compose down -v
+
+# Remove DHIS2 and PostgreSQL images
+docker rmi dhis2/core:2.42 postgis/postgis:16-3.4
+
+# Go back to parent directory and remove the project
+cd ..
+rm -rf dhis2-docker
+```
+
+### Option 2: Step-by-Step Removal
+
+```bash
+# 1. Stop and remove containers
+docker-compose down
+
+# 2. Remove volumes (this deletes all data)
+docker volume rm dhis2-docker_postgres-data 2>/dev/null || true
+
+# 3. Remove network
+docker network rm dhis2 2>/dev/null || true
+
+# 4. Remove images
+docker rmi dhis2/core:2.42
+docker rmi postgis/postgis:16-3.4
+
+# 5. Remove any dangling images (optional)
+docker image prune -f
+
+# 6. Remove the project directory
+cd ..
+rm -rf dhis2-docker
+```
+
+### Verify Complete Removal
+
+```bash
+# Check for any remaining DHIS2 containers
+docker ps -a | grep dhis2
+
+# Check for any remaining DHIS2 images
+docker images | grep dhis2
+
+# Check for any remaining volumes
+docker volume ls | grep dhis2
+
+# Check for any remaining networks
+docker network ls | grep dhis2
+```
+
+**Warning:** This will permanently delete all DHIS2 data, configurations, and the entire project. Make sure to backup any important data before proceeding.
+
 ## Data Persistence
 
 The `data` directory contains data for the DHIS2 and Postgres containers. The `dhis` directory contains the DHIS2 configuration file (`dhis.conf`), and the `postgres` directory contains the Postgres data. The `dhis.conf` are loaded through environmental variables. Please adjust them accordingly
