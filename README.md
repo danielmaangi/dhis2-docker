@@ -21,37 +21,120 @@ Before you can run this project, you need to have Docker and Docker Compose inst
 - [Install Docker](https://docs.docker.com/get-docker/)
 - [Install Docker Compose](https://docs.docker.com/compose/install/)
 
-## Setup
+## Quick Start
 
-1. Clone this repository.
-2. Navigate to the project directory.
+### 1. Clone and Setup
 
-## Running the Project
+```bash
+# Clone the repository
+git clone <repository-url>
+cd dhis2-docker
 
-To start the project, run the following command in the project directory:
+# Create data directories (if they don't exist)
+mkdir -p data/dhis data/postgres
+```
 
-```sh
+### 2. Start DHIS2
+
+```bash
+# Start in detached mode (recommended)
+docker-compose up -d
+
+# Or start with logs visible
 docker-compose up
 ```
 
-This will start the DHIS2 and Postgres containers. The DHIS2 instance will be accessible at `http://localhost:8080`.
+The DHIS2 instance will be accessible at `http://localhost:8080`.
 
-## Stopping the Project
+**Default credentials:**
+- Username: `admin`
+- Password: `district`
 
-To stop the project, run the following command in the project directory:
+### 3. Stop DHIS2
 
-```sh
+```bash
+# Stop containers (preserves data)
 docker-compose down
+
+# Stop and remove volumes (WARNING: This will delete all data)
+docker-compose down -v
 ```
 
-This will stop and remove the DHIS2 and Postgres containers.
+## Upgrading DHIS2 Version
+
+To upgrade DHIS2 to a new version without losing data:
+
+### Method 1: Edit docker-compose.yml
+
+1. **Stop the current containers:**
+   ```bash
+   docker-compose down
+   ```
+
+2. **Edit docker-compose.yml:**
+   ```bash
+   # Change the image version
+   # From: image: dhis2/core:2.40
+   # To:   image: dhis2/core:2.41
+   ```
+
+3. **Pull the new image and start:**
+   ```bash
+   docker-compose pull dhis2
+   docker-compose up -d
+   ```
+
+### Method 2: Using Docker Commands
+
+```bash
+# Stop containers
+docker-compose down
+
+# Pull new DHIS2 version
+docker pull dhis2/core:2.41
+
+# Update the image tag in docker-compose.yml
+sed -i 's/dhis2\/core:.*/dhis2\/core:2.41/' docker-compose.yml
+
+# Start with new version
+docker-compose up -d
+```
+
+### Important Notes for Upgrades
+
+- **Data Persistence:** Your data is stored in `./data/postgres` and `./data/dhis` directories and will be preserved during upgrades
+- **Database Migration:** DHIS2 automatically handles database migrations when starting with a new version
+- **Backup Recommended:** Always backup your data before major version upgrades:
+  ```bash
+  # Backup database
+  docker-compose exec postgres pg_dump -U dhis dhis2 > backup_$(date +%Y%m%d).sql
+  
+  # Backup DHIS2 files
+  tar -czf dhis_backup_$(date +%Y%m%d).tar.gz data/dhis/
+  ```
+
+## Monitoring and Logs
+
+```bash
+# View logs
+docker-compose logs -f dhis2
+docker-compose logs -f postgres
+
+# Check container status
+docker-compose ps
+
+# Access DHIS2 container shell
+docker-compose exec dhis2 bash
+
+# Access PostgreSQL
+docker-compose exec postgres psql -U dhis -d dhis2
+```
 
 ## Data Persistence
 
 The `data` directory contains data for the DHIS2 and Postgres containers. The `dhis` directory contains the DHIS2 configuration file (`dhis.conf`), and the `postgres` directory contains the Postgres data. The `dhis.conf` are loaded through environmental variables. Please adjust them accordingly
 
-```dockercompose
-version: '3.1'
+```yaml
 services:
   dhis2:
     container_name: dhis2
@@ -64,13 +147,14 @@ services:
       POSTGRES_DB: dhis2
       POSTGRES_USER: dhis
       POSTGRES_PASSWORD: dhis
-      SERVER_HTTPS: off
+      SERVER_HTTPS: "off"
       SERVER_BASE_URL: http://localhost:8080
     depends_on:
       - postgres
-    image: dhis2/core:2.40.2
+    image: dhis2/core:2.42
     networks:
       - dhis2
+    platform: linux/amd64
     ports:
       - 8080:8080
     restart: unless-stopped
@@ -83,9 +167,10 @@ services:
       POSTGRES_DB: dhis2
       POSTGRES_USER: dhis
       POSTGRES_PASSWORD: dhis
-    image: postgis/postgis:15-3.4
+    image: postgis/postgis:16-3.4
     networks:
       - dhis2
+    platform: linux/amd64
     # ports:
     #   - 5432:5432
     restart: unless-stopped
